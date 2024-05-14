@@ -1,62 +1,72 @@
 'use client';
 
-import { useDroppable } from '@dnd-kit/core';
-import { BundleItem, DiscountTier } from '@/types/bundle';
-import { useMemo } from 'react';
+import React from 'react';
+import { useBundleContext } from '@/context/BundleContext';
 
-interface BundleDropZoneProps {
-  items: BundleItem[];
-  discountTiers: DiscountTier[];
-  onRemoveItem: (productId: string) => void;
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-}
+export default function BundleDropZone() {
+  const {
+    state,
+    removeItem,
+    updateQuantity,
+    clearBundle,
+    totalItems,
+    subtotal,
+    currentDiscount,
+    discountAmount,
+    finalPrice,
+  } = useBundleContext();
 
-export function BundleDropZone({
-  items,
-  discountTiers,
-  onRemoveItem,
-  onUpdateQuantity,
-}: BundleDropZoneProps) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: 'bundle-drop-zone',
-  });
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Drop handling is managed by the parent BundleBuilder component
+  };
 
-  const { subtotal, discount, total, appliedTier } = useMemo(() => {
-    const subtotal = items.reduce(
-      (sum, item) => sum + item.product.price * item.quantity,
-      0
-    );
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
 
-    // Find the best applicable tier
-    const applicableTiers = discountTiers
-      .filter((tier) => totalItems >= tier.minItems)
-      .sort((a, b) => b.discountPercentage - a.discountPercentage);
+  const formatPrice = (price: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price);
+  };
 
-    const appliedTier = applicableTiers[0] || null;
-    const discountPercentage = appliedTier?.discountPercentage || 0;
-    const discount = subtotal * (discountPercentage / 100);
-    const total = subtotal - discount;
+  const getNextDiscountTier = () => {
+    if (!state.discountTiers.length) return null;
+    
+    const nextTier = state.discountTiers
+      .filter((tier) => tier.minItems > totalItems)
+      .sort((a, b) => a.minItems - b.minItems)[0];
+    
+    return nextTier || null;
+  };
 
-    return { subtotal, discount, total, appliedTier };
-  }, [items, discountTiers]);
-
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const nextTier = discountTiers.find((tier) => tier.minItems > totalItems);
+  const nextTier = getNextDiscountTier();
+  const itemsNeededForNextTier = nextTier ? nextTier.minItems - totalItems : 0;
 
   return (
     <div
-      ref={setNodeRef}
-      className={`border-2 border-dashed rounded-xl p-6 min-h-[400px] transition-colors ${
-        isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
-      }`}
+      className="bundle-drop-zone bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[400px]"
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
     >
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Bundle</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-800">Your Bundle</h2>
+        {state.items.length > 0 && (
+          <button
+            onClick={clearBundle}
+            className="text-sm text-red-600 hover:text-red-800 transition-colors"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
 
-      {items.length === 0 ? (
+      {state.items.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-500">
           <svg
-            className="w-12 h-12 mb-3"
+            className="w-16 h-16 mb-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -68,98 +78,104 @@ export function BundleDropZone({
               d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
             />
           </svg>
-          <p>Drag products here to build your bundle</p>
+          <p className="text-center">
+            Drag products here to start building your bundle
+          </p>
+          <p className="text-sm mt-2">
+            Add 2+ items to unlock discounts!
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div
-              key={item.product.id}
-              className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm"
-            >
-              <div className="w-12 h-12 bg-gray-100 rounded flex-shrink-0">
-                {item.product.imageUrl && (
-                  <img
-                    src={item.product.imageUrl}
-                    alt={item.product.name}
-                    className="w-full h-full object-cover rounded"
-                  />
-                )}
-              </div>
-              <div className="flex-grow min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">
-                  {item.product.name}
-                </p>
-                <p className="text-gray-600 text-sm">
-                  ${item.product.price.toFixed(2)} each
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    onUpdateQuantity(item.product.id, Math.max(0, item.quantity - 1))
-                  }
-                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                >
-                  -
-                </button>
-                <span className="w-8 text-center font-medium">{item.quantity}</span>
-                <button
-                  onClick={() =>
-                    onUpdateQuantity(
-                      item.product.id,
-                      Math.min(item.product.stockQuantity, item.quantity + 1)
-                    )
-                  }
-                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                >
-                  +
-                </button>
-              </div>
-              <button
-                onClick={() => onRemoveItem(item.product.id)}
-                className="text-red-500 hover:text-red-700 p-1"
+        <>
+          <ul className="space-y-3 mb-6">
+            {state.items.map((item) => (
+              <li
+                key={item.productId}
+                className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <div className="flex items-center space-x-3">
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-800">{item.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatPrice(item.price)} each
+                    </p>
+                  </div>
+                </div>
 
-      {/* Price Summary */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-gray-600">
-            <span>Subtotal ({totalItems} items)</span>
-            <span>${subtotal.toFixed(2)}</span>
-          </div>
-          {appliedTier && (
-            <div className="flex justify-between text-green-600">
-              <span>Bundle Discount ({appliedTier.discountPercentage}%)</span>
-              <span>-${discount.toFixed(2)}</span>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center border rounded">
+                    <button
+                      onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                      className="px-2 py-1 hover:bg-gray-100 transition-colors"
+                      aria-label="Decrease quantity"
+                    >
+                      -
+                    </button>
+                    <span className="px-3 py-1 border-x">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                      className="px-2 py-1 hover:bg-gray-100 transition-colors"
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => removeItem(item.productId)}
+                    className="text-red-500 hover:text-red-700 transition-colors"
+                    aria-label="Remove item"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {nextTier && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                🎉 Add {itemsNeededForNextTier} more item{itemsNeededForNextTier !== 1 ? 's' : ''} to unlock {nextTier.discountPercent}% off!
+              </p>
             </div>
           )}
-          <div className="flex justify-between text-lg font-semibold text-gray-900 pt-2">
-            <span>Total</span>
-            <span>${total.toFixed(2)}</span>
-          </div>
-        </div>
 
-        {nextTier && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-            Add {nextTier.minItems - totalItems} more item(s) to unlock{' '}
-            <strong>{nextTier.discountPercentage}% off!</strong>
+          <div className="border-t pt-4 space-y-2">
+            <div className="flex justify-between text-gray-600">
+              <span>Items ({totalItems})</span>
+              <span>{formatPrice(subtotal)}</span>
+            </div>
+
+            {currentDiscount && (
+              <div className="flex justify-between text-green-600">
+                <span>Discount ({currentDiscount.discountPercent}%)</span>
+                <span>-{formatPrice(discountAmount)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t">
+              <span>Total</span>
+              <span>{formatPrice(finalPrice)}</span>
+            </div>
           </div>
-        )}
-      </div>
+
+          <button
+            className="w-full mt-6 bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={totalItems < 2}
+          >
+            {totalItems < 2 ? 'Add at least 2 items' : 'Proceed to Checkout'}
+          </button>
+        </>
+      )}
     </div>
   );
 }

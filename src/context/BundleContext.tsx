@@ -1,213 +1,118 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
-import { Bundle, BundleItem, BundleState, Product, DiscountTier, BundleRule } from '@/types/bundle';
+import { BundleItem, DiscountTier, Bundle } from '@/types/bundle';
+
+interface BundleState {
+  items: BundleItem[];
+  discountTiers: DiscountTier[];
+  isLoading: boolean;
+  error: string | null;
+}
 
 type BundleAction =
-  | { type: 'ADD_ITEM'; payload: Product }
+  | { type: 'ADD_ITEM'; payload: BundleItem }
   | { type: 'REMOVE_ITEM'; payload: string }
   | { type: 'UPDATE_QUANTITY'; payload: { productId: string; quantity: number } }
   | { type: 'CLEAR_BUNDLE' }
-  | { type: 'SET_PRODUCTS'; payload: Product[] }
-  | { type: 'SET_RULES'; payload: BundleRule[] }
-  | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'LOAD_SAVED_BUNDLE'; payload: Bundle };
+  | { type: 'SET_LOADING'; payload: boolean };
 
-interface BundleContextType extends BundleState {
-  addItem: (product: Product) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  clearBundle: () => void;
-  loadSavedBundle: (bundle: Bundle) => void;
-  getTotalItems: () => number;
-  getApplicableTier: () => DiscountTier | null;
-}
+const DEFAULT_DISCOUNT_TIERS: DiscountTier[] = [
+  { minItems: 2, maxItems: 3, discountPercent: 5 },
+  { minItems: 4, maxItems: 5, discountPercent: 10 },
+  { minItems: 6, maxItems: 10, discountPercent: 15 },
+  { minItems: 11, maxItems: Infinity, discountPercent: 20 },
+];
 
-const BundleContext = createContext<BundleContextType | undefined>(undefined);
-
-function calculateBundleTotals(
-  items: BundleItem[],
-  rules: BundleRule[]
-): { subtotal: number; discount: number; total: number; appliedTier?: DiscountTier } {
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-
-  let appliedTier: DiscountTier | undefined;
-  let discount = 0;
-
-  // Find the best applicable discount tier from active rules
-  for (const rule of rules) {
-    if (!rule.isActive) continue;
-    if (totalItems < rule.minProducts) continue;
-    if (rule.maxProducts && totalItems > rule.maxProducts) continue;
-
-    for (const tier of rule.discountTiers) {
-      if (totalItems >= tier.minItems && totalItems <= tier.maxItems) {
-        const tierDiscount =
-          tier.discountType === 'percentage'
-            ? subtotal * (tier.discountPercent / 100)
-            : tier.fixedDiscount || 0;
-
-        if (tierDiscount > discount) {
-          discount = tierDiscount;
-          appliedTier = tier;
-        }
-      }
-    }
-  }
-
-  return {
-    subtotal,
-    discount,
-    total: subtotal - discount,
-    appliedTier,
-  };
-}
-
-function createEmptyBundle(): Bundle {
-  return {
-    id: crypto.randomUUID(),
-    name: 'My Bundle',
-    items: [],
-    subtotal: 0,
-    discount: 0,
-    total: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isSaved: false,
-  };
-}
+const initialState: BundleState = {
+  items: [],
+  discountTiers: DEFAULT_DISCOUNT_TIERS,
+  isLoading: false,
+  error: null,
+};
 
 function bundleReducer(state: BundleState, action: BundleAction): BundleState {
   switch (action.type) {
     case 'ADD_ITEM': {
-      const currentBundle = state.currentBundle || createEmptyBundle();
-      const existingItemIndex = currentBundle.items.findIndex(
-        (item) => item.product.id === action.payload.id
+      const existingItemIndex = state.items.findIndex(
+        (item) => item.productId === action.payload.productId
       );
 
-      let newItems: BundleItem[];
       if (existingItemIndex >= 0) {
-        newItems = currentBundle.items.map((item, index) =>
-          index === existingItemIndex
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        newItems = [...currentBundle.items, { product: action.payload, quantity: 1 }];
+        const updatedItems = [...state.items];
+        const existingItem = updatedItems[existingItemIndex];
+        updatedItems[existingItemIndex] = {
+          ...existingItem,
+          quantity: existingItem.quantity + action.payload.quantity,
+        };
+        return { ...state, items: updatedItems, error: null };
       }
 
-      const totals = calculateBundleTotals(newItems, state.activeRules);
-
-      return {
-        ...state,
-        currentBundle: {
-          ...currentBundle,
-          items: newItems,
-          ...totals,
-          updatedAt: new Date(),
-        },
-      };
+      return { ...state, items: [...state.items, action.payload], error: null };
     }
 
-    case 'REMOVE_ITEM': {
-      if (!state.currentBundle) return state;
-
-      const newItems = state.currentBundle.items.filter(
-        (item) => item.product.id !== action.payload
-      );
-      const totals = calculateBundleTotals(newItems, state.activeRules);
-
+    case 'REMOVE_ITEM':
       return {
         ...state,
-        currentBundle: {
-          ...state.currentBundle,
-          items: newItems,
-          ...totals,
-          updatedAt: new Date(),
-        },
+        items: state.items.filter((item) => item.productId !== action.payload),
+        error: null,
       };
-    }
 
     case 'UPDATE_QUANTITY': {
-      if (!state.currentBundle) return state;
-
-      const newItems = state.currentBundle.items
-        .map((item) =>
-          item.product.id === action.payload.productId
-            ? { ...item, quantity: action.payload.quantity }
-            : item
-        )
-        .filter((item) => item.quantity > 0);
-
-      const totals = calculateBundleTotals(newItems, state.activeRules);
+      if (action.payload.quantity < 1) {
+        return {
+          ...state,
+          items: state.items.filter((item) => item.productId !== action.payload.productId),
+          error: null,
+        };
+      }
 
       return {
         ...state,
-        currentBundle: {
-          ...state.currentBundle,
-          items: newItems,
-          ...totals,
-          updatedAt: new Date(),
-        },
+        items: state.items.map((item) =>
+          item.productId === action.payload.productId
+            ? { ...item, quantity: action.payload.quantity }
+            : item
+        ),
+        error: null,
       };
     }
 
     case 'CLEAR_BUNDLE':
-      return {
-        ...state,
-        currentBundle: createEmptyBundle(),
-      };
-
-    case 'SET_PRODUCTS':
-      return {
-        ...state,
-        availableProducts: action.payload,
-      };
-
-    case 'SET_RULES':
-      return {
-        ...state,
-        activeRules: action.payload,
-      };
-
-    case 'SET_LOADING':
-      return {
-        ...state,
-        isLoading: action.payload,
-      };
+      return { ...state, items: [], error: null };
 
     case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-      };
+      return { ...state, error: action.payload };
 
-    case 'LOAD_SAVED_BUNDLE':
-      return {
-        ...state,
-        currentBundle: action.payload,
-      };
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
 
     default:
       return state;
   }
 }
 
-const initialState: BundleState = {
-  currentBundle: null,
-  availableProducts: [],
-  activeRules: [],
-  isLoading: false,
-  error: null,
-};
+interface BundleContextValue {
+  state: BundleState;
+  addItem: (item: BundleItem) => void;
+  removeItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  clearBundle: () => void;
+  totalItems: number;
+  subtotal: number;
+  currentDiscount: DiscountTier | null;
+  discountAmount: number;
+  finalPrice: number;
+}
+
+const BundleContext = createContext<BundleContextValue | undefined>(undefined);
 
 export function BundleProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(bundleReducer, initialState);
 
-  const addItem = useCallback((product: Product) => {
-    dispatch({ type: 'ADD_ITEM', payload: product });
+  const addItem = useCallback((item: BundleItem) => {
+    dispatch({ type: 'ADD_ITEM', payload: item });
   }, []);
 
   const removeItem = useCallback((productId: string) => {
@@ -222,33 +127,58 @@ export function BundleProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'CLEAR_BUNDLE' });
   }, []);
 
-  const loadSavedBundle = useCallback((bundle: Bundle) => {
-    dispatch({ type: 'LOAD_SAVED_BUNDLE', payload: bundle });
-  }, []);
-
-  const getTotalItems = useCallback(() => {
-    return state.currentBundle?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  }, [state.currentBundle]);
-
-  const getApplicableTier = useCallback(() => {
-    return state.currentBundle?.appliedTier || null;
-  }, [state.currentBundle]);
-
-  const value = useMemo(
-    () => ({
-      ...state,
-      addItem,
-      removeItem,
-      updateQuantity,
-      clearBundle,
-      loadSavedBundle,
-      getTotalItems,
-      getApplicableTier,
-    }),
-    [state, addItem, removeItem, updateQuantity, clearBundle, loadSavedBundle, getTotalItems, getApplicableTier]
+  const totalItems = useMemo(
+    () => state.items.reduce((sum, item) => sum + item.quantity, 0),
+    [state.items]
   );
 
-  return <BundleContext.Provider value={value}>{children}</BundleContext.Provider>;
+  const subtotal = useMemo(
+    () =>
+      state.items.reduce((sum, item) => {
+        const itemPrice = Number(item.price) || 0;
+        const itemQuantity = Number(item.quantity) || 0;
+        return sum + itemPrice * itemQuantity;
+      }, 0),
+    [state.items]
+  );
+
+  const currentDiscount = useMemo(() => {
+    if (totalItems < 2) return null;
+    
+    const applicableTier = state.discountTiers
+      .filter((tier) => totalItems >= tier.minItems && totalItems <= tier.maxItems)
+      .sort((a, b) => b.discountPercent - a.discountPercent)[0];
+    
+    return applicableTier || null;
+  }, [totalItems, state.discountTiers]);
+
+  const discountAmount = useMemo(() => {
+    if (!currentDiscount) return 0;
+    return Math.round((subtotal * currentDiscount.discountPercent) / 100 * 100) / 100;
+  }, [subtotal, currentDiscount]);
+
+  const finalPrice = useMemo(() => {
+    return Math.round((subtotal - discountAmount) * 100) / 100;
+  }, [subtotal, discountAmount]);
+
+  const value: BundleContextValue = {
+    state,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearBundle,
+    totalItems,
+    subtotal,
+    currentDiscount,
+    discountAmount,
+    finalPrice,
+  };
+
+  return (
+    <BundleContext.Provider value={value}>
+      {children}
+    </BundleContext.Provider>
+  );
 }
 
 export function useBundleContext() {
