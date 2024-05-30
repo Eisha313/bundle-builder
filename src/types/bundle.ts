@@ -5,61 +5,60 @@ export interface Product {
   price: number;
   image: string;
   category: string;
-  sku: string;
   inventory: number;
-  eligibleForBundle: boolean;
+  eligible: boolean;
 }
 
-export interface BundleItem {
-  product: Product;
+export interface BundleItem extends Product {
   quantity: number;
 }
 
 export interface DiscountTier {
-  id: string;
   minItems: number;
-  maxItems: number;
-  discountPercent: number;
-  discountType: 'percentage' | 'fixed';
-  fixedDiscount?: number;
+  discount: number;
+}
+
+export interface TierDiscount {
+  subtotal: number;
+  discountPercentage: number;
+  discountAmount: number;
+  total: number;
+  itemCount: number;
+  nextTier: DiscountTier | null;
+  itemsUntilNextTier: number;
+}
+
+export interface Bundle {
+  id: string;
+  name: string;
+  items: BundleItem[];
+  createdAt: Date;
+  updatedAt: Date;
+  userId?: string;
+}
+
+export interface SavedBundle extends Bundle {
+  userId: string;
+  isFavorite: boolean;
 }
 
 export interface BundleRule {
   id: string;
   name: string;
   description: string;
-  minProducts: number;
-  maxProducts: number;
+  minItems: number;
+  maxItems: number;
   eligibleCategories: string[];
+  eligibleProductIds: string[];
   discountTiers: DiscountTier[];
-  isActive: boolean;
+  active: boolean;
   startDate?: Date;
   endDate?: Date;
 }
 
-export interface Bundle {
-  id: string;
-  userId?: string;
-  name: string;
-  items: BundleItem[];
+export interface PricingSummary {
   subtotal: number;
-  discount: number;
+  discount: TierDiscount;
   total: number;
-  appliedTier?: DiscountTier;
-  createdAt: Date;
-  updatedAt: Date;
-  isSaved: boolean;
+  currency: string;
 }
-
-export interface BundleState {
-  currentBundle: Bundle | null;
-  availableProducts: Product[];
-  activeRules: BundleRule[];
-  isLoading: boolean;
-  error: string | null;
-}
-
-export type DragItem = {
-  type: 'product';
-  product: Product;
-};
