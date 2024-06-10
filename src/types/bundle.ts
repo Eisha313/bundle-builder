@@ -9,23 +9,13 @@ export interface Product {
   eligible: boolean;
 }
 
-export interface BundleItem extends Product {
+export interface BundleItem {
+  productId: string;
+  name: string;
+  price: number;
   quantity: number;
-}
-
-export interface DiscountTier {
-  minItems: number;
-  discount: number;
-}
-
-export interface TierDiscount {
-  subtotal: number;
-  discountPercentage: number;
-  discountAmount: number;
-  total: number;
-  itemCount: number;
-  nextTier: DiscountTier | null;
-  itemsUntilNextTier: number;
+  image: string;
+  category?: string;
 }
 
 export interface Bundle {
@@ -34,31 +24,60 @@ export interface Bundle {
   items: BundleItem[];
   createdAt: Date;
   updatedAt: Date;
-  userId?: string;
+  customerId?: string;
 }
 
-export interface SavedBundle extends Bundle {
-  userId: string;
-  isFavorite: boolean;
+export interface DiscountTier {
+  minItems: number;
+  discountPercent: number;
+  label: string;
 }
 
-export interface BundleRule {
+export interface BundleRules {
+  minItems: number;
+  maxItems?: number;
+  minValue?: number;
+  discountTiers: DiscountTier[];
+  eligibleProductIds?: string[];
+  requiredCategories?: string[];
+}
+
+export interface PricingResult {
+  subtotal: number;
+  discount: number;
+  discountPercent: number;
+  total: number;
+  currentTier: DiscountTier | null;
+  nextTier: DiscountTier | null;
+  itemsToNextTier: number;
+}
+
+export interface ValidationError {
+  code: string;
+  message: string;
+  field: string;
+  productId?: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  itemCount: number;
+  totalValue: number;
+}
+
+export interface SavedBundle {
   id: string;
   name: string;
-  description: string;
-  minItems: number;
-  maxItems: number;
-  eligibleCategories: string[];
-  eligibleProductIds: string[];
-  discountTiers: DiscountTier[];
-  active: boolean;
-  startDate?: Date;
-  endDate?: Date;
+  items: BundleItem[];
+  customerId: string;
+  createdAt: Date;
+  lastOrderedAt?: Date;
 }
 
-export interface PricingSummary {
-  subtotal: number;
-  discount: TierDiscount;
-  total: number;
-  currency: string;
+export interface BundleState {
+  items: BundleItem[];
+  isLoading: boolean;
+  error: string | null;
+  validation: ValidationResult | null;
 }
