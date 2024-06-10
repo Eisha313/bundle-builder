@@ -1,61 +1,108 @@
-import { useMemo } from 'react';
-import { BundleItem, DiscountTier, TierDiscount } from '@/types/bundle';
+import { useMemo, useCallback } from 'react';
+import { BundleItem, DiscountTier, PriceBreakdown } from '@/types/bundle';
 import {
-  calculateTierDiscount,
-  DEFAULT_DISCOUNT_TIERS,
+  calculateBundlePrice,
+  getNextDiscountTier,
   formatCurrency,
-  formatDiscount,
+  DEFAULT_DISCOUNT_TIERS,
+  validateBundle,
 } from '@/utils/pricing';
 
 interface UseBundlePricingOptions {
-  items: BundleItem[];
-  tiers?: DiscountTier[];
+  discountTiers?: DiscountTier[];
   currency?: string;
+  minBundleItems?: number;
 }
 
-interface UseBundlePricingResult extends TierDiscount {
+interface UseBundlePricingReturn {
+  priceBreakdown: PriceBreakdown;
   formattedSubtotal: string;
   formattedDiscount: string;
   formattedTotal: string;
-  discountLabel: string;
+  nextTier: { itemsNeeded: number; discountPercent: number } | null;
+  isValidBundle: boolean;
+  validationErrors: string[];
   hasDiscount: boolean;
-  savingsMessage: string | null;
-  nextTierMessage: string | null;
+  savingsMessage: string;
 }
 
-export function useBundlePricing({
-  items,
-  tiers = DEFAULT_DISCOUNT_TIERS,
-  currency = 'USD',
-}: UseBundlePricingOptions): UseBundlePricingResult {
-  return useMemo(() => {
-    const pricing = calculateTierDiscount(items, tiers);
+export function useBundlePricing(
+  items: BundleItem[],
+  options: UseBundlePricingOptions = {}
+): UseBundlePricingReturn {
+  const {
+    discountTiers = DEFAULT_DISCOUNT_TIERS,
+    currency = 'USD',
+    minBundleItems = 2,
+  } = options;
 
-    const formattedSubtotal = formatCurrency(pricing.subtotal, currency);
-    const formattedDiscount = formatCurrency(pricing.discountAmount, currency);
-    const formattedTotal = formatCurrency(pricing.total, currency);
-    const discountLabel = formatDiscount(pricing.discountPercentage);
-    const hasDiscount = pricing.discountPercentage > 0;
+  const safeItems = useMemo(() => {
+    if (!Array.isArray(items)) {
+      return [];
+    }
+    return items.filter(item => 
+      item && 
+      typeof item.id === 'string' && 
+      typeof item.price === 'number' && 
+      Number.isFinite(item.price) &&
+      item.price >= 0
+    );
+  }, [items]);
 
-    const savingsMessage = hasDiscount
-      ? `You're saving ${formattedDiscount} with your bundle!`
-      : null;
+  const priceBreakdown = useMemo(
+    () => calculateBundlePrice(safeItems, discountTiers),
+    [safeItems, discountTiers]
+  );
 
-    const nextTierMessage = pricing.nextTier
-      ? `Add ${pricing.itemsUntilNextTier} more item${pricing.itemsUntilNextTier !== 1 ? 's' : ''} to unlock ${pricing.nextTier.discount}% off!`
-      : null;
+  const validation = useMemo(
+    () => validateBundle(safeItems, minBundleItems),
+    [safeItems, minBundleItems]
+  );
 
-    return {
-      ...pricing,
-      formattedSubtotal,
-      formattedDiscount,
-      formattedTotal,
-      discountLabel,
-      hasDiscount,
-      savingsMessage,
-      nextTierMessage,
-    };
-  }, [items, tiers, currency]);
+  const nextTier = useMemo(
+    () => getNextDiscountTier(priceBreakdown.itemCount, discountTiers),
+    [priceBreakdown.itemCount, discountTiers]
+  );
+
+  const formattedSubtotal = useMemo(
+    () => formatCurrency(priceBreakdown.subtotal, currency),
+    [priceBreakdown.subtotal, currency]
+  );
+
+  const formattedDiscount = useMemo(
+    () => formatCurrency(priceBreakdown.discountAmount, currency),
+    [priceBreakdown.discountAmount, currency]
+  );
+
+  const formattedTotal = useMemo(
+    () => formatCurrency(priceBreakdown.total, currency),
+    [priceBreakdown.total, currency]
+  );
+
+  const hasDiscount = priceBreakdown.discountPercent > 0;
+
+  const savingsMessage = useMemo(() => {
+    if (hasDiscount) {
+      return `You're saving ${priceBreakdown.discountPercent}% (${formattedDiscount})`;
+    }
+    if (nextTier) {
+      const itemWord = nextTier.itemsNeeded === 1 ? 'item' : 'items';
+      return `Add ${nextTier.itemsNeeded} more ${itemWord} to get ${nextTier.discountPercent}% off!`;
+    }
+    return 'Add items to start building your bundle';
+  }, [hasDiscount, priceBreakdown.discountPercent, formattedDiscount, nextTier]);
+
+  return {
+    priceBreakdown,
+    formattedSubtotal,
+    formattedDiscount,
+    formattedTotal,
+    nextTier,
+    isValidBundle: validation.valid,
+    validationErrors: validation.errors,
+    hasDiscount,
+    savingsMessage,
+  };
 }
 
 export default useBundlePricing;
