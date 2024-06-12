@@ -1,12 +1,12 @@
 export interface Product {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   price: number;
   image: string;
   category: string;
   inventory: number;
-  eligible: boolean;
+  eligible?: boolean;
 }
 
 export interface BundleItem {
@@ -42,14 +42,12 @@ export interface BundleRules {
   requiredCategories?: string[];
 }
 
-export interface PricingResult {
+export interface PriceBreakdown {
   subtotal: number;
-  discount: number;
   discountPercent: number;
+  discountAmount: number;
   total: number;
-  currentTier: DiscountTier | null;
-  nextTier: DiscountTier | null;
-  itemsToNextTier: number;
+  itemCount: number;
 }
 
 export interface ValidationError {
@@ -77,7 +75,6 @@ export interface SavedBundle {
 
 export interface BundleState {
   items: BundleItem[];
-  isLoading: boolean;
+  name: string;
   error: string | null;
-  validation: ValidationResult | null;
 }
