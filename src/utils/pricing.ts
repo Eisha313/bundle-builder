@@ -1,10 +1,10 @@
-import { BundleItem, DiscountTier, PriceBreakdown } from '@/types/bundle';
+import { BundleItem, DiscountTier, PriceBreakdown, Product } from '@/types/bundle';
 
 export const DEFAULT_DISCOUNT_TIERS: DiscountTier[] = [
-  { minItems: 2, discountPercent: 5 },
-  { minItems: 3, discountPercent: 10 },
-  { minItems: 5, discountPercent: 15 },
-  { minItems: 8, discountPercent: 20 },
+  { minItems: 2, discountPercent: 5, label: '5% off' },
+  { minItems: 3, discountPercent: 10, label: '10% off' },
+  { minItems: 5, discountPercent: 15, label: '15% off' },
+  { minItems: 8, discountPercent: 20, label: '20% off' },
 ];
 
 export function getApplicableDiscount(
@@ -126,8 +126,8 @@ export function getNextDiscountTier(
 export function validateBundleItem(item: Partial<BundleItem>): string[] {
   const errors: string[] = [];
 
-  if (!item.id || typeof item.id !== 'string') {
-    errors.push('Item must have a valid ID');
+  if (!item.productId || typeof item.productId !== 'string') {
+    errors.push('Item must have a valid product ID');
   }
 
   if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
@@ -143,6 +143,17 @@ export function validateBundleItem(item: Partial<BundleItem>): string[] {
   }
 
   return errors;
+}
+
+export function productToBundleItem(product: Product): BundleItem {
+  return {
+    productId: product.id,
+    name: product.name,
+    price: product.price,
+    quantity: 1,
+    image: product.image,
+    category: product.category,
+  };
 }
 
 export function validateBundle(items: BundleItem[], minItems: number = 2): { valid: boolean; errors: string[] } {
