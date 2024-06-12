@@ -7,7 +7,7 @@ import { validateBundleItem } from '@/utils/pricing';
 type BundleAction =
   | { type: 'ADD_ITEM'; payload: BundleItem }
   | { type: 'REMOVE_ITEM'; payload: string }
-  | { type: 'UPDATE_QUANTITY'; payload: { id: string; quantity: number } }
+  | { type: 'UPDATE_QUANTITY'; payload: { productId: string; quantity: number } }
   | { type: 'CLEAR_BUNDLE' }
   | { type: 'LOAD_BUNDLE'; payload: Bundle }
   | { type: 'SET_NAME'; payload: string }
@@ -15,13 +15,13 @@ type BundleAction =
 
 interface BundleContextValue extends BundleState {
   addItem: (item: BundleItem) => boolean;
-  removeItem: (itemId: string) => void;
-  updateQuantity: (itemId: string, quantity: number) => boolean;
+  removeItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => boolean;
   clearBundle: () => void;
   loadBundle: (bundle: Bundle) => void;
   setBundleName: (name: string) => void;
-  getItemById: (itemId: string) => BundleItem | undefined;
-  hasItem: (itemId: string) => boolean;
+  getItemByProductId: (productId: string) => BundleItem | undefined;
+  hasItem: (productId: string) => boolean;
 }
 
 const initialState: BundleState = {
@@ -36,76 +36,78 @@ const MAX_ITEM_QUANTITY = 99;
 function bundleReducer(state: BundleState, action: BundleAction): BundleState {
   switch (action.type) {
     case 'ADD_ITEM': {
-      const existingIndex = state.items.findIndex(item => item.id === action.payload.id);
-      
+      const existingIndex = state.items.findIndex(
+        item => item.productId === action.payload.productId
+      );
+
       if (existingIndex >= 0) {
         const existingItem = state.items[existingIndex];
         const newQuantity = Math.min(
           existingItem.quantity + action.payload.quantity,
           MAX_ITEM_QUANTITY
         );
-        
+
         const updatedItems = [...state.items];
         updatedItems[existingIndex] = { ...existingItem, quantity: newQuantity };
-        
+
         return { ...state, items: updatedItems, error: null };
       }
-      
+
       if (state.items.length >= MAX_BUNDLE_ITEMS) {
         return { ...state, error: `Bundle cannot contain more than ${MAX_BUNDLE_ITEMS} unique items` };
       }
-      
-      return { 
-        ...state, 
+
+      return {
+        ...state,
         items: [...state.items, { ...action.payload, quantity: Math.min(action.payload.quantity, MAX_ITEM_QUANTITY) }],
-        error: null 
+        error: null,
       };
     }
-    
+
     case 'REMOVE_ITEM': {
-      const filteredItems = state.items.filter(item => item.id !== action.payload);
+      const filteredItems = state.items.filter(item => item.productId !== action.payload);
       if (filteredItems.length === state.items.length) {
-        return state; // Item not found, no change
+        return state;
       }
       return { ...state, items: filteredItems, error: null };
     }
-    
+
     case 'UPDATE_QUANTITY': {
-      const { id, quantity } = action.payload;
-      
+      const { productId, quantity } = action.payload;
+
       if (quantity < 1) {
-        return bundleReducer(state, { type: 'REMOVE_ITEM', payload: id });
+        return bundleReducer(state, { type: 'REMOVE_ITEM', payload: productId });
       }
-      
+
       const clampedQuantity = Math.min(quantity, MAX_ITEM_QUANTITY);
-      const itemIndex = state.items.findIndex(item => item.id === id);
-      
+      const itemIndex = state.items.findIndex(item => item.productId === productId);
+
       if (itemIndex < 0) {
         return { ...state, error: 'Item not found in bundle' };
       }
-      
+
       const updatedItems = [...state.items];
       updatedItems[itemIndex] = { ...updatedItems[itemIndex], quantity: clampedQuantity };
-      
+
       return { ...state, items: updatedItems, error: null };
     }
-    
+
     case 'CLEAR_BUNDLE':
       return { ...initialState };
-    
+
     case 'LOAD_BUNDLE':
       return {
         items: action.payload.items || [],
         name: action.payload.name || '',
         error: null,
       };
-    
+
     case 'SET_NAME':
       return { ...state, name: action.payload, error: null };
-    
+
     case 'SET_ERROR':
       return { ...state, error: action.payload };
-    
+
     default:
       return state;
   }
@@ -126,23 +128,21 @@ export function BundleProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
-  const removeItem = useCallback((itemId: string) => {
-    if (!itemId || typeof itemId !== 'string') {
-      return;
-    }
-    dispatch({ type: 'REMOVE_ITEM', payload: itemId });
+  const removeItem = useCallback((productId: string) => {
+    if (!productId || typeof productId !== 'string') return;
+    dispatch({ type: 'REMOVE_ITEM', payload: productId });
   }, []);
 
-  const updateQuantity = useCallback((itemId: string, quantity: number): boolean => {
-    if (!itemId || typeof itemId !== 'string') {
-      dispatch({ type: 'SET_ERROR', payload: 'Invalid item ID' });
+  const updateQuantity = useCallback((productId: string, quantity: number): boolean => {
+    if (!productId || typeof productId !== 'string') {
+      dispatch({ type: 'SET_ERROR', payload: 'Invalid product ID' });
       return false;
     }
     if (!Number.isInteger(quantity)) {
       dispatch({ type: 'SET_ERROR', payload: 'Quantity must be a whole number' });
       return false;
     }
-    dispatch({ type: 'UPDATE_QUANTITY', payload: { id: itemId, quantity } });
+    dispatch({ type: 'UPDATE_QUANTITY', payload: { productId, quantity } });
     return true;
   }, []);
 
@@ -162,12 +162,12 @@ export function BundleProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_NAME', payload: name || '' });
   }, []);
 
-  const getItemById = useCallback((itemId: string): BundleItem | undefined => {
-    return state.items.find(item => item.id === itemId);
+  const getItemByProductId = useCallback((productId: string): BundleItem | undefined => {
+    return state.items.find(item => item.productId === productId);
   }, [state.items]);
 
-  const hasItem = useCallback((itemId: string): boolean => {
-    return state.items.some(item => item.id === itemId);
+  const hasItem = useCallback((productId: string): boolean => {
+    return state.items.some(item => item.productId === productId);
   }, [state.items]);
 
   const value: BundleContextValue = {
@@ -178,7 +178,7 @@ export function BundleProvider({ children }: { children: ReactNode }) {
     clearBundle,
     loadBundle,
     setBundleName,
-    getItemById,
+    getItemByProductId,
     hasItem,
   };
 
