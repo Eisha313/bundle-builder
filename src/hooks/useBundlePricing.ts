@@ -42,7 +42,7 @@ export function useBundlePricing(
     }
     return items.filter(item => 
       item && 
-      typeof item.id === 'string' && 
+      typeof item.productId === 'string' &&
       typeof item.price === 'number' && 
       Number.isFinite(item.price) &&
       item.price >= 0

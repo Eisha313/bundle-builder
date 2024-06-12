@@ -57,13 +57,13 @@ export function useBundleValidation({
     if (validation.isValid) return true;
     
     // Block checkout for critical errors
-    const blockingErrors = [
+    const blockingErrors: ValidationErrorCode[] = [
       VALIDATION_ERRORS.MIN_ITEMS,
       VALIDATION_ERRORS.OUT_OF_STOCK,
       VALIDATION_ERRORS.INVALID_PRODUCT,
     ];
-    
-    return !validation.errors.some(error => 
+
+    return !validation.errors.some(error =>
       blockingErrors.includes(error.code as ValidationErrorCode)
     );
   }, [validation]);
