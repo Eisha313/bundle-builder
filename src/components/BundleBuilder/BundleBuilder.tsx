@@ -11,10 +11,11 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { Product, BundleItem, DiscountTier } from '@/types/bundle';
+import { Product, DiscountTier } from '@/types/bundle';
 import { ProductCard } from './ProductCard';
-import { BundleDropZone } from './BundleDropZone';
-import { useBundle } from '@/context/BundleContext';
+import BundleDropZone from './BundleDropZone';
+import { useBundleContext } from '@/context/BundleContext';
+import { productToBundleItem } from '@/utils/pricing';
 
 interface BundleBuilderProps {
   products: Product[];
@@ -22,68 +23,60 @@ interface BundleBuilderProps {
 }
 
 export function BundleBuilder({ products, discountTiers }: BundleBuilderProps) {
-  const { items, addItem, removeItem, updateItemQuantity } = useBundle();
+  const { items, addItem, hasItem, getItemByProductId, updateQuantity } = useBundleContext();
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const mouseSensor = useSensor(MouseSensor, {
-    activationConstraint: {
-      distance: 10,
-    },
+    activationConstraint: { distance: 8 },
   });
 
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: {
-      delay: 250,
-      tolerance: 5,
-    },
+    activationConstraint: { delay: 200, tolerance: 5 },
   });
 
   const sensors = useSensors(mouseSensor, touchSensor);
 
-  const categories = ['all', ...new Set(products.map((p) => p.category))];
+  const categories = ['all', ...Array.from(new Set(products.map((p) => p.category)))];
 
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   function handleDragStart(event: DragStartEvent) {
-    const product = event.active.data.current as Product;
-    setActiveProduct(product);
+    const product = products.find(p => p.id === event.active.id);
+    setActiveProduct(product || null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveProduct(null);
 
     if (event.over?.id === 'bundle-drop-zone') {
-      const product = event.active.data.current as Product;
-      const existingItem = items.find((item) => item.product.id === product.id);
+      const product = products.find(p => p.id === event.active.id);
+      if (!product) return;
 
+      const existingItem = getItemByProductId(product.id);
       if (existingItem) {
-        if (existingItem.quantity < product.stockQuantity) {
-          updateItemQuantity(product.id, existingItem.quantity + 1);
+        if (existingItem.quantity < product.inventory) {
+          updateQuantity(product.id, existingItem.quantity + 1);
         }
       } else {
-        addItem(product);
+        addItem(productToBundleItem(product));
       }
     }
   }
 
-  function handleRemoveItem(productId: string) {
-    removeItem(productId);
-  }
-
-  function handleUpdateQuantity(productId: string, quantity: number) {
-    if (quantity <= 0) {
-      removeItem(productId);
+  function handleAddToBundle(product: Product) {
+    const existingItem = getItemByProductId(product.id);
+    if (existingItem) {
+      if (existingItem.quantity < product.inventory) {
+        updateQuantity(product.id, existingItem.quantity + 1);
+      }
     } else {
-      updateItemQuantity(productId, quantity);
+      addItem(productToBundleItem(product));
     }
   }
 
@@ -93,25 +86,27 @@ export function BundleBuilder({ products, discountTiers }: BundleBuilderProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 items-start">
         {/* Product Selection */}
-        <div className="lg:col-span-2">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Select Products
-            </h2>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-grow px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="relative flex-grow">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -120,59 +115,41 @@ export function BundleBuilder({ products, discountTiers }: BundleBuilderProps) {
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Discount Tiers Info */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
-            <h3 className="font-medium text-gray-900 mb-2">Bundle Discounts</h3>
-            <div className="flex flex-wrap gap-3">
-              {discountTiers.map((tier) => (
-                <div
-                  key={tier.id}
-                  className="px-3 py-1 bg-white rounded-full text-sm shadow-sm"
-                >
-                  <span className="font-semibold text-blue-600">
-                    {tier.discountPercentage}% off
-                  </span>
-                  <span className="text-gray-600"> - {tier.minItems}+ items</span>
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  isDragging={activeProduct?.id === product.id}
+                  inBundle={hasItem(product.id)}
+                  onAdd={() => handleAddToBundle(product)}
+                />
               ))}
             </div>
-          </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isDragging={activeProduct?.id === product.id}
-              />
-            ))}
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-16 text-gray-400">
+                <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <p className="font-medium">No products found</p>
+                <p className="text-sm mt-1">Try a different search or category</p>
+              </div>
+            )}
           </div>
-
-          {filteredProducts.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              No products found matching your criteria.
-            </div>
-          )}
         </div>
 
         {/* Bundle Drop Zone */}
-        <div className="lg:col-span-1">
-          <BundleDropZone
-            items={items}
-            discountTiers={discountTiers}
-            onRemoveItem={handleRemoveItem}
-            onUpdateQuantity={handleUpdateQuantity}
-          />
+        <div className="lg:col-span-2 lg:sticky lg:top-6">
+          <BundleDropZone />
         </div>
       </div>
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeProduct ? (
-          <div className="opacity-80">
-            <ProductCard product={activeProduct} />
+          <div className="opacity-90 rotate-3 scale-105">
+            <ProductCard product={activeProduct} isDragging />
           </div>
         ) : null}
       </DragOverlay>
