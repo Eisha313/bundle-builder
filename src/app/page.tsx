@@ -4,18 +4,18 @@ import { BundleBuilder } from '@/components/BundleBuilder/BundleBuilder';
 import { Product, DiscountTier } from '@/types/bundle';
 
 const sampleProducts: Product[] = [
-  { id: '1', name: 'Organic Coffee Beans', price: 14.99, image: '/products/coffee.jpg', category: 'Beverages', inventory: 25 },
-  { id: '2', name: 'Artisan Chocolate Bar', price: 8.99, image: '/products/chocolate.jpg', category: 'Sweets', inventory: 40 },
-  { id: '3', name: 'Raw Honey Jar', price: 12.99, image: '/products/honey.jpg', category: 'Pantry', inventory: 18 },
-  { id: '4', name: 'Crunchy Granola Mix', price: 9.99, image: '/products/granola.jpg', category: 'Breakfast', inventory: 30 },
-  { id: '5', name: 'Extra Virgin Olive Oil', price: 18.99, image: '/products/olive-oil.jpg', category: 'Pantry', inventory: 15 },
-  { id: '6', name: 'Premium Tea Collection', price: 16.99, image: '/products/tea.jpg', category: 'Beverages', inventory: 22 },
-  { id: '7', name: 'Dried Mango Slices', price: 6.99, image: '/products/mango.jpg', category: 'Snacks', inventory: 50 },
-  { id: '8', name: 'Almond Butter', price: 11.49, image: '/products/almond-butter.jpg', category: 'Pantry', inventory: 20 },
-  { id: '9', name: 'Matcha Powder', price: 22.99, image: '/products/matcha.jpg', category: 'Beverages', inventory: 12 },
-  { id: '10', name: 'Trail Mix', price: 7.49, image: '/products/trail-mix.jpg', category: 'Snacks', inventory: 35 },
-  { id: '11', name: 'Maple Syrup', price: 13.99, image: '/products/maple-syrup.jpg', category: 'Breakfast', inventory: 28 },
-  { id: '12', name: 'Dark Chocolate Truffles', price: 15.99, image: '/products/truffles.jpg', category: 'Sweets', inventory: 3 },
+  { id: '1', name: 'Organic Coffee Beans', price: 14.99, image: 'https://images.unsplash.com/photo-1606486544554-164d98da4889?w=400&h=400&fit=crop', category: 'Beverages', inventory: 25 },
+  { id: '2', name: 'Artisan Chocolate Bar', price: 8.99, image: 'https://images.unsplash.com/photo-1575377427642-087cf684f29d?w=400&h=400&fit=crop', category: 'Sweets', inventory: 40 },
+  { id: '3', name: 'Raw Honey Jar', price: 12.99, image: 'https://images.unsplash.com/photo-1587049352851-8d4e89133924?w=400&h=400&fit=crop', category: 'Pantry', inventory: 18 },
+  { id: '4', name: 'Crunchy Granola Mix', price: 9.99, image: 'https://images.unsplash.com/photo-1645517976245-569a91016f79?w=400&h=400&fit=crop', category: 'Breakfast', inventory: 30 },
+  { id: '5', name: 'Extra Virgin Olive Oil', price: 18.99, image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&h=400&fit=crop', category: 'Pantry', inventory: 15 },
+  { id: '6', name: 'Premium Tea Collection', price: 16.99, image: 'https://images.unsplash.com/photo-1715372138766-03bf4411ae29?w=400&h=400&fit=crop', category: 'Beverages', inventory: 22 },
+  { id: '7', name: 'Dried Mango Slices', price: 6.99, image: 'https://images.unsplash.com/photo-1605879883262-0cd26b362f54?w=400&h=400&fit=crop', category: 'Snacks', inventory: 50 },
+  { id: '8', name: 'Almond Butter', price: 11.49, image: 'https://images.unsplash.com/photo-1615110250484-e8c3b151b957?w=400&h=400&fit=crop', category: 'Pantry', inventory: 20 },
+  { id: '9', name: 'Matcha Powder', price: 22.99, image: 'https://images.unsplash.com/photo-1704079698754-5e621edb610b?w=400&h=400&fit=crop', category: 'Beverages', inventory: 12 },
+  { id: '10', name: 'Trail Mix', price: 7.49, image: 'https://images.unsplash.com/photo-1767877609689-beff32b9c0ac?w=400&h=400&fit=crop', category: 'Snacks', inventory: 35 },
+  { id: '11', name: 'Maple Syrup', price: 13.99, image: 'https://images.unsplash.com/photo-1552587210-5cc4cd7d13c3?w=400&h=400&fit=crop', category: 'Breakfast', inventory: 28 },
+  { id: '12', name: 'Dark Chocolate Truffles', price: 15.99, image: 'https://images.unsplash.com/photo-1582493255270-b3844e2a63c8?w=400&h=400&fit=crop', category: 'Sweets', inventory: 3 },
 ];
 
 const discountTiers: DiscountTier[] = [

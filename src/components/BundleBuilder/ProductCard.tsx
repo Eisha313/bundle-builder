@@ -51,10 +51,12 @@ export function ProductCard({ product, isDragging, inBundle, onAdd }: ProductCar
         </div>
       )}
 
-      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-        <span className="text-3xl">
-          {getCategoryEmoji(product.category)}
-        </span>
+      <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
       </div>
 
       <div className="space-y-1.5">
@@ -87,15 +89,4 @@ export function ProductCard({ product, isDragging, inBundle, onAdd }: ProductCar
       )}
     </div>
   );
-}
-
-function getCategoryEmoji(category: string): string {
-  const map: Record<string, string> = {
-    Beverages: '\u2615',
-    Sweets: '\uD83C\uDF6B',
-    Pantry: '\uD83C\uDF3F',
-    Breakfast: '\uD83E\uDD5E',
-    Snacks: '\uD83C\uDF3E',
-  };
-  return map[category] || '\uD83D\uDCE6';
 }

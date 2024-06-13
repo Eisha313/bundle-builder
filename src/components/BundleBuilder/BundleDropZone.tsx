@@ -100,6 +100,11 @@ export default function BundleDropZone() {
                   key={item.productId}
                   className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 px-3 py-2.5 rounded-xl transition-colors group"
                 >
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 text-sm truncate">{item.name}</p>
                     <p className="text-xs text-gray-400">{formatPrice(item.price)} each</p>
