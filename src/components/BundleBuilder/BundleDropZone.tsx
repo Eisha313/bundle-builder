@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useBundleContext } from '@/context/BundleContext';
 import { useBundlePricing } from '@/hooks/useBundlePricing';
+import CheckoutModal from './CheckoutModal';
 
 export default function BundleDropZone() {
   const { items, removeItem, updateQuantity, clearBundle } = useBundleContext();
+  const [showCheckout, setShowCheckout] = useState(false);
   const {
     priceBreakdown,
     formattedSubtotal,
@@ -168,6 +170,7 @@ export default function BundleDropZone() {
             </div>
 
             <button
+              onClick={() => setShowCheckout(true)}
               className="w-full mt-4 py-3 text-sm font-bold rounded-xl transition-all
                 bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-sm
                 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
@@ -178,6 +181,17 @@ export default function BundleDropZone() {
           </>
         )}
       </div>
+
+      {showCheckout && (
+        <CheckoutModal
+          items={items}
+          onClose={() => setShowCheckout(false)}
+          onConfirm={() => {
+            setShowCheckout(false);
+            clearBundle();
+          }}
+        />
+      )}
     </div>
   );
 }
